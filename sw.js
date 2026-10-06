@@ -1,4 +1,4 @@
-const CACHE = "tadabbur-v10";
+const CACHE = "tadabbur-v11";
 const FILES = ["./", "index.html", "quran.js", "quran_hafs.js", "UthmanicHafs.ttf", "manifest.json", "icon-180.png", "icon-512.png",
   "AmiriQuran.ttf", "Amiri-Regular.ttf", "Amiri-Bold.ttf",
   "ScheherazadeNew-Regular.ttf", "NotoNaskhArabic.ttf"];

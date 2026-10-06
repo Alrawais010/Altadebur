@@ -119,6 +119,12 @@ button{font-family:inherit;cursor:pointer}
 .tb button.t{border-radius:9px;background:#fff;color:var(--green);font-size:17px;width:36px}
 .hr-ico{display:block;margin:0 auto;width:22px;border-radius:2px}
 .hr-ico.r{border-top:5px solid #c0392b}.hr-ico.b{border-top:2px solid #1f5fbf}
+.lnpick{display:flex;gap:6px;margin:0 0 12px}
+.lnpick button{flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--green);font-size:16px}
+.lnpick button .hr-ico{width:60%}
+.lnpick button.on{border:2px solid var(--green);background:#eef5f1}
+hr.sepline{border:0;height:0;margin:14px -4px 4px;border-radius:3px;cursor:pointer}
+.note.bare{background:none;border:0;padding:0 4px}
 .tbhint{font-size:12.5px;color:var(--muted);margin:0 2px 10px;line-height:1.5}
 .ed{min-height:110px;padding:10px 12px 10px 64px;border:1px solid var(--line);border-radius:10px;background:#fff;
   font-family:"Amiri";font-size:19px;line-height:1.8;direction:rtl;text-align:right;outline:none;
@@ -185,6 +191,12 @@ hr.lb{border-top:2px solid #1f5fbf !important}
   <div class="sheet-body">
     <label class="lab">عنوان الفاصل</label>
     <input class="search" id="nsTitleIn" dir="rtl" placeholder="مثال: وقفة تدبّر، معاني الكلمات، فوائد…">
+    <label class="lab">خط بعد الآية (قبل العنوان)</label>
+    <div class="lnpick" id="lnPick">
+      <button type="button" data-l="">بدون</button>
+      <button type="button" data-l="lr"><i class="hr-ico r"></i></button>
+      <button type="button" data-l="lb"><i class="hr-ico b"></i></button>
+    </div>
     <label class="lab">النصوص</label>
     <div class="tb" id="tb">
       <button type="button" data-c="#c0392b" style="--c:#c0392b" title="أحمر"></button>
@@ -260,7 +272,7 @@ hr.lb{border-top:2px solid #1f5fbf !important}
 <script src="quran.js"></script>
 <script src="quran_hafs.js"></script>
 <script>
-const APP_VERSION = "2.0";
+const APP_VERSION = "2.1";
 const Q = window.QURAN;
 const KEY = "tadabbur_v1";
 const AR = n => String(n).replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]);
@@ -350,10 +362,11 @@ function sepHtml(a, note){
   const head = ttl
     ? `<div class="sep${items.length?"":" only"}" data-a="${a}"><span class="orn">۞</span><span class="lbl">${esc(ttl)}</span><span class="orn">۞</span></div>`
     : `<div class="sep notitle${items.length?"":" only"}" data-a="${a}"><span class="orn">۞</span></div>`;   // no title: just the line
-  if(!items.length) return head;   // title only: no empty box underneath
-  return head
+  const line = note.line ? `<hr class="sepline ${note.line==="lb"?"lb":"lr"}" data-a="${a}">` : "";   // line right after the ayah
+  if(!items.length) return line + head;   // title only: no empty box underneath
+  return line + head
     + `<div class="notes" data-a="${a}">`
-    + items.map((t,j)=> (j?`<div class="divi">✦</div>`:"") + `<div class="note">${clean(t)}</div>`).join("")
+    + items.map((t,j)=> (j?`<div class="divi">✦</div>`:"") + `<div class="note${lineOnly(t)?" bare":""}">${clean(t)}</div>`).join("")
     + `</div><div class="endsep"></div>`;
 }
 /* keep only what the editor makes: colour, bold, line breaks, red/blue lines */
@@ -383,6 +396,10 @@ function clean(html){
   walk(t.content, out);
   return out.innerHTML.replace(/^(\s|<br>|<div><br><\/div>)+|(\s|<br>|<div><br><\/div>)+$/g, "");
 }
+function lineOnly(h){   // a text that is just a red/blue line: show it without the box
+  const d = document.createElement("div"); d.innerHTML = h || "";
+  return !d.textContent.trim() && !!d.querySelector("hr");
+}
 function isEmptyHtml(h){
   if(!h) return true;
   const d = document.createElement("div"); d.innerHTML = h;
@@ -391,7 +408,7 @@ function isEmptyHtml(h){
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 $("read").addEventListener("click", e=>{
-  const n = e.target.closest(".notes,.sep"); if(n){ openNote(+n.dataset.a); return; }
+  const n = e.target.closest(".notes,.sep,.sepline"); if(n){ openNote(+n.dataset.a); return; }
   const a = e.target.closest(".aya,.intro-tap"); if(a){ openNote(+a.dataset.a, a); }
 });
 
@@ -411,6 +428,7 @@ function openNote(a, el){
   }
   const n = has ? S.notes[k] : {title:"", items:[""]};
   $("nsTitleIn").value = n.title || "";
+  setLine(n.line || "");
   $("nsTitleIn").placeholder = a===0 ? "مثال: مقدمة السورة، مقاصدها، سبب النزول…" : "مثال: وقفة تدبّر، معاني الكلمات، فوائد…";
   $("nsItems").innerHTML = "";
   (n.items.length ? n.items : [""]).forEach(t=>addItem(t));
@@ -436,6 +454,9 @@ function numberItems(){
   all.forEach((w,i)=>{ w.querySelector(".ix").textContent = all.length>1 ? "النص " + AR(i+1) : ""; });
 }
 $("nsAdd").onclick = ()=> addItem("", true);
+let curLine = "";
+function setLine(l){ curLine = l; document.querySelectorAll("#lnPick button").forEach(b=>b.classList.toggle("on", b.dataset.l===l)); }
+document.querySelectorAll("#lnPick button").forEach(b=> b.onclick = ()=> setLine(b.dataset.l));
 
 /* toolbar: remember where the cursor/selection was, so tapping a button doesn't lose it */
 let lastEd = null, lastRange = null;
@@ -469,7 +490,7 @@ $("tb").querySelectorAll("button").forEach(b=>{
 });
 $("nsSave").onclick = ()=>{
   const items = [...$("nsItems").querySelectorAll(".ed")].map(e=>clean(e.innerHTML)).filter(h=>!isEmptyHtml(h));
-  S.notes[S.cur+":"+curA] = {title:$("nsTitleIn").value.trim(), items};
+  S.notes[S.cur+":"+curA] = {title:$("nsTitleIn").value.trim(), items, line:curLine};
   S.dirty=(S.dirty||0)+1; save(); hide(); renderSura(); renderList(); toast("تم الحفظ ✓"); checkBackup();
 };
 $("nsDel").onclick = ()=>{
